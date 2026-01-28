@@ -1,139 +1,160 @@
 import streamlit as st
 import requests
-import time
 from datetime import datetime
 
 # ==========================================
-# 1. 页面配置 & 记忆初始化
+# 1. 页面配置 & CSS 注入 (整容的核心)
 # ==========================================
-st.set_page_config(
-    page_title="热点侦探 V3.0",
-    page_icon="🧠",
-    layout="wide",  # 宽屏模式，看报告更舒服
-    initial_sidebar_state="expanded"
-)
+st.set_page_config(page_title="DeepInsight Pro", page_icon="🦁", layout="wide")
 
-# --- 核心：初始化“记忆” ---
-# 如果这是用户第一次打开，先给他个空的笔记本
+# 自定义 CSS：把 Streamlit 原生的丑头部去掉，增加卡片阴影
+st.markdown("""
+<style>
+    /* 隐藏右上角菜单和页脚 */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    
+    /* 全局背景微调 */
+    .stApp {
+        background-color: #0e1117;
+    }
+    
+    /* 卡片容器样式 */
+    .css-card {
+        border-radius: 10px;
+        padding: 20px;
+        background-color: #1e2130;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        margin-bottom: 20px;
+        border: 1px solid #303340;
+    }
+    
+    /* 标题样式增强 */
+    h1 {
+        color: #f0f2f6;
+        font-family: 'Helvetica Neue', sans-serif;
+        font-weight: 700;
+    }
+    
+    /* 侧边栏美化 */
+    section[data-testid="stSidebar"] {
+        background-color: #161924;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# ==========================================
+# 2. 初始化记忆
+# ==========================================
 if 'history' not in st.session_state:
-    st.session_state.history = [] 
-
+    st.session_state.history = []
 if 'current_report' not in st.session_state:
     st.session_state.current_report = None
 
 # ==========================================
-# 2. 侧边栏：历史记录控制台
+# 3. 侧边栏：极简风格
 # ==========================================
 with st.sidebar:
-    st.title("🧠 侦探记忆库")
-    st.caption("本次会话的历史查询")
+    st.markdown("### 🦁 DeepInsight Pro")
+    st.caption("Institutional Grade AI Analysis")
+    st.markdown("---")
     
-    # 遍历历史记录，生成按钮
-    # reversed() 是为了让最新的记录排在最上面
     for i, item in enumerate(reversed(st.session_state.history)):
-        col_btn, col_time = st.columns([3, 1])
-        # 如果点击了某个历史关键词
-        if st.button(f"📄 {item['keyword']}", key=f"history_{i}", use_container_width=True):
-            st.session_state.current_report = item # 把当年的报告调出来
-            st.rerun() # 重新刷新页面显示
-
-    st.divider()
-    
-    # 清空按钮
-    if st.button("🗑️ 清空记忆", type="primary"):
+        # 使用 emoji 区分
+        if st.button(f"🕒 {item['time']} | {item['keyword']}", key=f"hist_{i}", use_container_width=True):
+            st.session_state.current_report = item
+            st.rerun()
+            
+    st.markdown("---")
+    if st.button("🗑️ 清空历史", use_container_width=True):
         st.session_state.history = []
         st.session_state.current_report = None
         st.rerun()
 
 # ==========================================
-# 3. 主界面逻辑
+# 4. 主界面：仪表盘布局
 # ==========================================
-st.title("🕵️‍♂️ 全网热点侦探 (记忆版)")
 
-# --- 搜索区 ---
-with st.container():
-    col1, col2 = st.columns([5, 1])
-    with col1:
-        # 如果是从历史记录点的，自动填入关键词
-        default_kw = st.session_state.current_report['keyword'] if st.session_state.current_report else ""
-        keyword = st.text_input("输入关键词", value=default_kw, placeholder="例如：2026年养老金政策 / 英伟达财报")
-    with col2:
-        st.write("") 
-        st.write("") 
-        start_btn = st.button("🚀 新侦查", type="primary", use_container_width=True)
+# 顶部标题栏
+col_logo, col_input, col_btn = st.columns([1, 4, 1])
 
-# --- 核心处理逻辑 ---
+with col_logo:
+    st.title("🦁") # 用 Emoji 做个简单的 Logo
+
+with col_input:
+    keyword = st.text_input("", placeholder="输入代码或关键词 (e.g. Tesla, 存量房贷利率)", label_visibility="collapsed")
+
+with col_btn:
+    start_btn = st.button("🚀 深度分析", type="primary", use_container_width=True)
+
+st.markdown("---")
+
+# 逻辑处理
 if start_btn and keyword:
-    # 进度条
-    progress_text = f"正在全网搜查关于【{keyword}】的情报..."
-    my_bar = st.progress(0, text=progress_text)
-    
-    try:
-        # -------------------------------------------------------
-        # 【请修改】这里填你那个能用的 ngrok 地址
-        # -------------------------------------------------------
-        n8n_webhook_url = "https://n8n.lbuding.com/webhook/search"
-        
-        # 模拟进度
-        for percent in range(60):
-            time.sleep(0.01)
-            my_bar.progress(percent + 1, text=progress_text)
-
-        # 发送请求
-        response = requests.post(n8n_webhook_url, json={"keyword": keyword})
-        
-        if response.status_code == 200:
-            my_bar.progress(100, text="报告生成完毕！")
-            result = response.json()
-            report_content = result.get("report", str(result))
+    with st.spinner(f"正在穿透全网数据分析【{keyword}】..."):
+        try:
+            # ---------------------------
+            # ⚠️ 记得换成你的 ngrok 地址
+            # ---------------------------
+            n8n_url = "https://n8n.lbuding.com/webhook/search"
             
-            # --- 关键步骤：存入记忆 ---
-            # 把这次成功的报告，打包存进 session_state
-            record = {
-                "keyword": keyword,
-                "content": report_content,
-                "time": datetime.now().strftime("%H:%M:%S"),
-                "raw": result
-            }
-            st.session_state.history.append(record)
-            st.session_state.current_report = record # 设为当前显示
-            
-            time.sleep(0.5)
-            my_bar.empty()
-            st.rerun() # 刷新页面展示结果
-            
-        else:
-            st.error(f"工厂报错: {response.status_code}")
-            
-    except Exception as e:
-        st.error(f"连接错误: {e}")
+            response = requests.post(n8n_url, json={"keyword": keyword})
+            if response.status_code == 200:
+                result = response.json()
+                content = result.get("report", str(result))
+                
+                # 存入历史
+                record = {
+                    "keyword": keyword, 
+                    "content": content, 
+                    "time": datetime.now().strftime("%H:%M")
+                }
+                st.session_state.history.append(record)
+                st.session_state.current_report = record
+                st.rerun()
+        except Exception as e:
+            st.error(f"系统连接中断: {e}")
 
 # ==========================================
-# 4. 报告展示区
+# 5. 报告展示区 (卡片式设计)
 # ==========================================
 if st.session_state.current_report:
-    data = st.session_state.current_report
+    report = st.session_state.current_report
     
-    st.divider()
-    st.markdown(f"### 📊 关于 “{data['keyword']}” 的侦查简报")
-    st.caption(f"生成时间: {data['time']}")
+    # 使用 HTML 容器模拟卡片效果
+    st.markdown(f"""
+    <div class="css-card">
+        <h2 style="margin-top:0;">📡 {report['keyword']} 深度研报</h2>
+        <p style="color:#888;">生成时间: {report['time']} | 数据源: 全网实时检索</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # 左右分栏：左边主要内容，右边可以放（假装的）指标
+    main_col, metric_col = st.columns([3, 1])
     
-    tab1, tab2 = st.tabs(["精读简报", "原始数据"])
+    with main_col:
+        st.markdown(report['content'])
     
-    with tab1:
-        st.markdown(data['content'])
+    with metric_col:
+        # 这里为了美观，我们加几个“装饰性”的指标卡片
+        # 未来你可以让 n8n 真的返回这些数字
+        st.markdown('<div class="css-card"><h5>🔥 市场热度</h5><h2>High</h2></div>', unsafe_allow_html=True)
+        st.markdown('<div class="css-card"><h5>⚖️ 情绪倾向</h5><h2 style="color:#4caf50;">Neutral</h2></div>', unsafe_allow_html=True)
         
-        # 导出功能
         st.download_button(
-            label="📥 下载当前报告",
-            data=data['content'],
-            file_name=f"{data['keyword']}_report.md",
-            mime="text/markdown"
+            "📥 导出 PDF (Markdown)",
+            data=report['content'],
+            file_name=f"{report['keyword']}_report.md",
+            mime="text/markdown",
+            use_container_width=True
         )
-        
-    with tab2:
-        st.json(data['raw'])
 
 else:
-    # 还没搜索时的欢迎页
-    st.info("👈 左侧是你的历史记录，上方输入关键词开始新的侦查。")
+    # 空状态页
+    st.markdown("""
+    <div style="text-align: center; color: #666; padding: 50px;">
+        <h3>👋 欢迎回到指挥中心</h3>
+        <p>输入关键词，启动 AI 投资分析引擎</p>
+    </div>
+    """, unsafe_allow_html=True)
